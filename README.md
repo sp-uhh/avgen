@@ -20,6 +20,8 @@ python src/eval.py --noisy_dir $noisy_fir --video_roi_dir $video_roi_dir --out_d
 
 where `$noisy_dir` is the directory containing the noisy audio files and `$video_roi_dir` is the directory containing the video ROI files. The output will be saved in the directory `$out_dir`.
 
+Make sure that the noisy audio and video files are named the same way, e.g., `audio_0001.wav` and `video_0001.mp4`.
+
 ## Citation
 
 If you find this code useful, please consider citing the following paper:
