@@ -1,0 +1,133 @@
+task_name: train
+tags:
+- ncsnpp_cond1
+train: true
+test: false
+compile: false
+ckpt_path: null
+seed: null
+data:
+  _target_: src.data.lrs_datamodule.LRS3DataModule
+  data_dir: ${oc.env:LRS3_DIR}
+  manifest_str: 30h_data
+  max_token_count: 300
+  min_len: 50
+  max_len: 300
+  audio_only: false
+  num_workers: 8
+  sgmse_kwargs:
+    n_fft: 510
+    hop_length: 160
+    normalize: not
+    center: true
+    window_type: hann
+    spec_abs_exponent: 0.5
+    spec_factor: 0.15
+  avhubert_kwargs:
+    normalize: true
+    modalities:
+    - video
+model:
+  _target_: src.models.avgen_module.AVGen
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 0.0005
+    weight_decay: 0.0
+  scheduler: null
+  avhubert:
+    _target_: src.models.avhubert.AVHubertFinetuned
+  score_model:
+    _target_: src.models.sgmse.backbones.ncsnpp_cond1.NCSNpp_cond1
+    scale_by_sigma: true
+  sde:
+    _target_: src.models.sgmse.sdes.OUVESDE
+    theta: 1.5
+    sigma_min: 0.01
+    sigma_max: 0.5
+  params:
+    ema_decay: 0.999
+    t_eps: 0.03
+    num_eval_files: 20
+    n_fft: 510
+    hop_length: 160
+    normalize: not
+    center: true
+    window_type: hann
+    spec_abs_exponent: 0.5
+    spec_factor: 0.15
+    sr: 16000
+    freeze_avhubert: true
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch={epoch:03d}_pesq={pesq:.2f}
+    monitor: pesq
+    verbose: false
+    save_last: true
+    save_top_k: 1
+    mode: max
+    auto_insert_metric_name: false
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: null
+    save_on_train_epoch_end: null
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: pesq
+    min_delta: 0.0
+    patience: 10
+    verbose: false
+    mode: max
+    strict: true
+    check_finite: true
+    stopping_threshold: null
+    divergence_threshold: null
+    check_on_train_epoch_end: null
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
+  model_summary:
+    max_depth: -1
+logger:
+  wandb:
+    _target_: lightning.pytorch.loggers.wandb.WandbLogger
+    save_dir: ${paths.output_dir}
+    offline: false
+    id: null
+    anonymous: null
+    project: av-gen
+    log_model: false
+    prefix: ''
+    entity: richter
+    group: ''
+    tags: ${tags}
+    job_type: ''
+trainer:
+  _target_: lightning.pytorch.trainer.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 100
+  accelerator: gpu
+  devices: -1
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: 1
+  deterministic: false
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: norm
+  log_every_n_steps: 50
+  detect_anomaly: true
+  strategy: ddp_find_unused_parameters_false
+  num_nodes: 1
+  sync_batchnorm: true
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+extras:
+  ignore_warnings: false
+  enforce_tags: true
+  print_config: false
