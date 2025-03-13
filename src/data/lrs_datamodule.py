@@ -222,8 +222,10 @@ class LRS3DataModule(LightningDataModule):
 
 
     def teardown(self, stage: Optional[str] = None):
-        """Clean up after fit or test."""
-        pass
+        self.train_dp = None
+        self.val_dp = None
+        self.test_dp = None
+        return None
 
     def state_dict(self):
         """Extra things to save to checkpoint."""

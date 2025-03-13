@@ -15,7 +15,7 @@ pip install -r requirements.txt
 To run the inference code, use the following command:
 
 ```bash
-python src/eval.py --noisy_dir $noisy_fir --video_roi_dir $video_roi_dir --out_dir $out_dir
+python src/eval.py --noisy_dir $noisy_dir --video_roi_dir $video_roi_dir --out_dir $out_dir
 ```
 
 where `$noisy_dir` is the directory containing the noisy audio files and `$video_roi_dir` is the directory containing the video ROI files. The output will be saved in the directory `$out_dir`.

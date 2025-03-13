@@ -14,7 +14,7 @@ data:
   min_len: 50
   max_len: 300
   audio_only: false
-  num_workers: 8
+  num_workers: 1
   sgmse_kwargs:
     n_fft: 510
     hop_length: 160

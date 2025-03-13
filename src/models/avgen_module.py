@@ -11,8 +11,8 @@ import numpy as np
 import wandb
 import matplotlib.pyplot as plt
 import os
+import soundfile as sf
 from os.path import join
-from soundfile import write
 import csv
 
 
@@ -225,24 +225,18 @@ class AVGen(LightningModule):
 
 
     def test_step(self, batch, batch_idx):
-        files, metrics = evaluate_model(self, batch, first_only=False, with_metrics=False)
-
-        for file, metric in zip(files, metrics):
+        files = evaluate_model(self, batch, first_only=False)
+        for file in files:
             x_hat = file["x_hat"]
             noisy_path = file["noisy_path"]
-            target_file_name = "/".join(noisy_path.split("/")[-4:])
-            target_path = join(self.params.log_dir, self.params.run_name, target_file_name.replace("_target.wav", "_enhanced.wav"))
-
-            dir_name = os.path.dirname(target_path)
-            if not os.path.exists(dir_name):
-                os.makedirs(dir_name)
-            write(target_path, x_hat, self.params.sr)
-            
-
-        return metrics
+            target_path = noisy_path.replace(self.params.noisy_dir, join(self.params.log_dir, self.params.run_name))
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            sf.write(target_path, x_hat, self.params.sr)
+        return None
+        
     
     def on_test_end(self) -> None:
-        pass
+        return None
 
     def to(self, *args, **kwargs):
         """Override PyTorch .to() to also transfer the EMA of the model weights"""

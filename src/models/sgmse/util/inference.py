@@ -14,7 +14,7 @@ N = 30
 corrector_steps = 1
 
 
-def evaluate_model(model, batch, first_only=True, with_metrics=True):
+def evaluate_model(model, batch, first_only=True):
 
     if first_only:
         # take first example in batch
@@ -35,7 +35,7 @@ def evaluate_model(model, batch, first_only=True, with_metrics=True):
 
     num_samples = sample.size(0)
 
-    files = []; metrics = []
+    files = []
     for i in range(num_samples):
 
         # Load wavs
@@ -61,18 +61,6 @@ def evaluate_model(model, batch, first_only=True, with_metrics=True):
             'noisy_path': noisy_paths[i],
         })
         
-        if with_metrics:
-            metrics.append({
-                'si_sdr': si_sdr(x, x_hat),
-                'pesq': pesq(sr, x, x_hat, 'wb') ,
-                'estoi': stoi(x, x_hat, sr, extended=True),
-            })
-        else:
-            metrics.append({
-            'si_sdr': 0.0,
-            'pesq': 0.0,
-            'estoi': 0.0,
-            })
-    return files, metrics
+    return files
     
     

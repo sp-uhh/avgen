@@ -1,63 +1,36 @@
-
 import os
 import av
+import yaml
 import urllib
 import hydra
 import pyrootutils
 import soundfile as sf
-from tqdm import tqdm
-from typing import List, Tuple
-from lightning import LightningDataModule, LightningModule, Trainer
-from lightning.pytorch.loggers import Logger
-from omegaconf import DictConfig, OmegaConf
-from argparse import ArgumentParser
-from os.path import join, abspath
-import yaml
-from pathlib import Path
+
 from glob import glob
+from tqdm import tqdm
+from os.path import join
+from pathlib import Path
+from omegaconf import OmegaConf
+from argparse import ArgumentParser
+from lightning import LightningDataModule, LightningModule, Trainer
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src import utils
 
-log = utils.get_pylogger(__name__)
-
-
-@utils.task_wrapper
-def evaluate(cfg: DictConfig) -> Tuple[dict, dict]:
-
+def evaluate(cfg):
     assert cfg.ckpt_path
 
-    log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
     
-    log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
 
-    log.info("Instantiating loggers...")
-    logger: List[Logger] = utils.instantiate_loggers(cfg.get("logger"))
+    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, logger=False)
 
-    log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, logger=logger)
-
-    object_dict = {
-        "cfg": cfg,
-        "datamodule": datamodule,
-        "model": model,
-        "logger": logger,
-        "trainer": trainer,
-    }
-
-    if logger:
-        log.info("Logging hyperparameters!")
-        utils.log_hyperparameters(object_dict)
-
-    log.info("Starting testing!")
     trainer.test(model=model, datamodule=datamodule, ckpt_path=cfg.ckpt_path)
 
-    metric_dict = trainer.callback_metrics
-
-    return metric_dict, object_dict
+    print("Testing finished!")
+    print("Teardown...")
+    datamodule.teardown()
 
 
 if __name__ == "__main__":
@@ -85,8 +58,11 @@ if __name__ == "__main__":
         urllib.request.urlretrieve(CHECKPOINT_URL, "checkpoints/avgen.ckpt")
 
     print("Creating manifest file...")
-    video_rois = glob(join(args.video_roi_dir, "**", "*.mp4"))
-    noisy_wavs = glob(join(args.noisy_dir, "**", "*.wav"))
+
+    video_rois = sorted(glob(join(args.video_roi_dir, "**", "*.mp4")))
+    video_rois += sorted(glob(join(args.video_roi_dir, "*.mp4")))
+    noisy_wavs = sorted(glob(join(args.noisy_dir, "**", "*.wav")))
+    noisy_wavs += sorted(glob(join(args.noisy_dir, "*.wav")))
 
     target_manifest_path = join(args.out_dir, args.run_name, "manifest.tsv") 
     os.makedirs(os.path.dirname(target_manifest_path), exist_ok=True)
@@ -106,9 +82,6 @@ if __name__ == "__main__":
 
     print("Start inference...")
 
-    cfg["ckpt_path"] = args.ckpt
-    cfg["logger"] = None
-
     # Set min and max length of the audio files
     cfg["data"]["max_token_count"] = 700
     cfg["data"]["max_len"] = 700
@@ -116,9 +89,10 @@ if __name__ == "__main__":
     cfg["data"]["_target_"] = "src.data.lrs_datamodule.LRS3DataModule"
     cfg["data"]["data_dir"] = "config"
     cfg["data"]["manifest_str"] = target_manifest_path
-     
     cfg["model"]["params"]["log_dir"] = args.out_dir
     cfg["model"]["params"]["run_name"] = args.run_name
+    cfg["model"]["params"]["noisy_dir"] = args.noisy_dir
+    cfg["ckpt_path"] = args.ckpt
 
     # Resolve hydra config
     def hydra_resolver(x):
